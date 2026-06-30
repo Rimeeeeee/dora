@@ -579,6 +579,7 @@ func buildSingleReceipt(
 // stable across tooling.
 type balAccountJSON struct {
 	Address        string                 `json:"address"`
+	StorageRoot    *string                `json:"storage_root,omitempty"`
 	StorageWrites  []balSlotWritesJSON    `json:"storage_writes,omitempty"`
 	StorageReads   []string               `json:"storage_reads,omitempty"`
 	BalanceChanges []balBalanceChangeJSON `json:"balance_changes,omitempty"`
@@ -617,6 +618,11 @@ func balToJSON(accesses []utils.BALAccountAccess) []balAccountJSON {
 	for i, entry := range accesses {
 		out := balAccountJSON{
 			Address: fmt.Sprintf("0x%x", entry.Address[:]),
+		}
+
+		if entry.StorageRoot != nil {
+			storageRoot := fmt.Sprintf("0x%x", entry.StorageRoot.Value)
+			out.StorageRoot = &storageRoot
 		}
 
 		if len(entry.StorageWrites) > 0 {

@@ -66,6 +66,10 @@
       background-color: rgba(108, 117, 125, 0.15);
       color: #6c757d;
     }
+    .bal-summary-badge.storage-root {
+      background-color: rgba(102, 16, 242, 0.15);
+      color: #6610f2;
+    }
     .bal-summary-badge.balance-change {
       background-color: rgba(255, 193, 7, 0.15);
       color: #cc9a06;
@@ -223,6 +227,12 @@
                   {{ len $entry.StorageReads }} reads
                 </span>
               {{ end }}
+              {{ if $entry.StorageRoot }}
+                <span class="bal-summary-badge storage-root">
+                  <i class="fas fa-sitemap"></i>
+                  storage root
+                </span>
+              {{ end }}
               {{ if $entry.BalanceChanges }}
                 <span class="bal-summary-badge balance-change">
                   <i class="fas fa-coins"></i>
@@ -241,7 +251,7 @@
                   {{ len $entry.CodeChanges }} code
                 </span>
               {{ end }}
-              {{ if and (not $entry.StorageChanges) (not $entry.StorageReads) (not $entry.BalanceChanges) (not $entry.NonceChanges) (not $entry.CodeChanges) }}
+              {{ if and (not $entry.StorageRoot) (not $entry.StorageChanges) (not $entry.StorageReads) (not $entry.BalanceChanges) (not $entry.NonceChanges) (not $entry.CodeChanges) }}
                 <span class="bal-summary-badge text-muted">
                   <i class="fas fa-ghost"></i>
                   no changes
@@ -397,7 +407,7 @@
         if (!entry) return;
         
         // Check if this is a no-changes entry
-        const hasChanges = entry.storage_changes || entry.storage_reads || 
+        const hasChanges = entry.storage_root || entry.storage_changes || entry.storage_reads ||
                           entry.balance_changes || entry.nonce_changes || entry.code_changes;
         
         if (!hasChanges) {
@@ -417,6 +427,20 @@
           let navHtml = '<ul class="nav nav-tabs mb-0" role="tablist">';
           let contentHtml = '<div class="tab-content bal-tab-content">';
           let hasActiveTab = false;
+
+          // Storage Root tab
+          if (entry.storage_root) {
+            navHtml += `
+              <li class="nav-item" role="presentation">
+                <button class="nav-link${!hasActiveTab ? ' active' : ''} bal-address-tab-header" data-bs-toggle="tab" data-bs-target="#bal-storage-root-${addressIndex}" type="button" data-tab-type="storage-root">
+                  <i class="fas fa-sitemap me-1"></i>
+                  Storage Root
+                </button>
+              </li>
+            `;
+            contentHtml += `<div class="tab-pane fade${!hasActiveTab ? ' show active' : ''}" id="bal-storage-root-${addressIndex}" role="tabpanel" data-tab-type="storage-root"></div>`;
+            hasActiveTab = true;
+          }
           
           // Storage Changes tab
           if (entry.storage_changes && entry.storage_changes.length > 0) {
@@ -527,6 +551,9 @@
         let html = '';
         
         switch(tabType) {
+          case 'storage-root':
+            html = this.renderStorageRoot(entry.storage_root);
+            break;
           case 'storage':
             html = this.renderStorageChanges(entry.storage_changes);
             break;
@@ -558,6 +585,20 @@
             }
           });
         });
+      },
+
+      renderStorageRoot(storageRoot) {
+        if (!storageRoot) return '';
+        const root = arrayToHex(storageRoot);
+        const label = root === '0x' ? 'Empty storage trie marker' : 'Post-block storage root';
+        return `
+          <div class="p-3">
+            <div class="text-muted small mb-1">${label}</div>
+            <div class="bal-change-item">
+              <span class="bal-value-text">${root}</span>
+            </div>
+          </div>
+        `;
       },
       
       renderStorageChanges(storageChanges) {
@@ -992,6 +1033,7 @@
         'post_balance': 'balance',
         'newNonce': 'nonce',
         'new_nonce': 'nonce',
+        'storageRoot': 'storage_root',
         // Add more mappings as needed
       };
       
@@ -1034,7 +1076,7 @@
         
         // Standard field names according to EIP-7928
         const standardFields = new Set([
-          'address', 'storage_changes', 'storage_reads', 'balance_changes', 
+          'address', 'storage_root', 'storage_changes', 'storage_reads', 'balance_changes',
           'nonce_changes', 'code_changes', 'slot', 'changes', 'block_access_index', 
           'value', 'balance', 'nonce', 'code'
         ]);
@@ -1090,12 +1132,16 @@
       function generateAccessListSummary(accessList, label) {
         const totalAddresses = accessList.length;
         let totalStorageChanges = 0;
+        let totalStorageRoots = 0;
         let totalStorageReads = 0;
         let totalBalanceChanges = 0;
         let totalNonceChanges = 0;
         let totalCodeChanges = 0;
         
         accessList.forEach(entry => {
+          if (getField(entry, 'storage_root')) {
+            totalStorageRoots++;
+          }
           totalStorageChanges += (getField(entry, 'storage_changes') || []).length;
           totalStorageReads += (getField(entry, 'storage_reads') || []).length;
           totalBalanceChanges += (getField(entry, 'balance_changes') || []).length;
@@ -1109,6 +1155,12 @@
               <div class="text-center">
                 <div class="h5 mb-0">${totalAddresses}</div>
                 <small class="text-muted">Addresses</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="text-center">
+                <div class="h5 mb-0">${totalStorageRoots}</div>
+                <small class="text-muted">Storage Roots</small>
               </div>
             </div>
             <div class="col-6">
@@ -1246,6 +1298,9 @@
         const differences = [];
         
         // Get fields from both entries with format compatibility
+        const blockStorageRoot = getField(blockEntry, 'storage_root');
+        const providedStorageRoot = getField(providedEntry, 'storage_root');
+
         const blockStorageChanges = getField(blockEntry, 'storage_changes') || [];
         const providedStorageChanges = getField(providedEntry, 'storage_changes') || [];
         
@@ -1263,6 +1318,15 @@
         
         // Collect all differences for this address
         const addressDiffs = [];
+
+        // Check storage root
+        if (normalizeOptionalHex(blockStorageRoot) !== normalizeOptionalHex(providedStorageRoot)) {
+          addressDiffs.push({
+            type: 'storage-root',
+            blockData: blockStorageRoot,
+            providedData: providedStorageRoot
+          });
+        }
         
         // Check storage changes
         if (!compareArraysDeep(blockStorageChanges, providedStorageChanges)) {
@@ -1327,6 +1391,9 @@
         
         addressDiffs.forEach(diff => {
           switch (diff.type) {
+            case 'storage-root':
+              html += generateStorageRootDetails(diff.blockData, diff.providedData);
+              break;
             case 'storage-changes':
               html += generateStorageChangesDetails(diff.blockData, diff.providedData);
               break;
@@ -1346,6 +1413,19 @@
         });
         
         return html;
+      }
+
+      function generateStorageRootDetails(blockRoot, providedRoot) {
+        const blockValue = blockRoot === null || blockRoot === undefined ? 'omitted' : arrayToHex(blockRoot);
+        const providedValue = providedRoot === null || providedRoot === undefined ? 'omitted' : arrayToHex(providedRoot);
+        return `
+          <div class="mt-2"><small class="fw-bold">Storage Root:</small>
+            <div class="row small font-monospace">
+              <div class="col-6"><strong>Block Access List:</strong> <span class="text-danger">${blockValue}</span></div>
+              <div class="col-6"><strong>Provided Access List:</strong> <span class="text-danger">${providedValue}</span></div>
+            </div>
+          </div>
+        `;
       }
       
       // Generate detailed diff for storage changes
@@ -1644,6 +1724,11 @@
         }
         
         // For non-strings, convert first then normalize
+        return normalizeHex(arrayToHex(value));
+      }
+
+      function normalizeOptionalHex(value) {
+        if (value === null || value === undefined) return null;
         return normalizeHex(arrayToHex(value));
       }
       

@@ -434,6 +434,7 @@ type SlotPageExecutionProof struct {
 
 type SlotPageBlockAccessListEntry struct {
 	Address        []byte                           `json:"address"`
+	StorageRoot    *string                          `json:"storage_root,omitempty"`
 	StorageChanges []*SlotPageBlockBALStorageChange `json:"storage_changes,omitempty"`
 	StorageReads   [][]byte                         `json:"storage_reads,omitempty"`
 	BalanceChanges []*SlotPageBlockBALBalanceChange `json:"balance_changes,omitempty"`
@@ -470,6 +471,7 @@ type SlotPageBlockBALCodeChange struct {
 // SlotPageBALSummary holds block-level BAL aggregates for EIP-8038 visibility.
 type SlotPageBALSummary struct {
 	UniqueAddresses   uint64 `json:"unique_addresses"`
+	StorageRoots      uint64 `json:"storage_roots"`
 	StorageSlotWrites uint64 `json:"storage_slot_writes"`
 	StorageWriteOps   uint64 `json:"storage_write_ops"`
 	ColdStorageReads  uint64 `json:"cold_storage_reads"`

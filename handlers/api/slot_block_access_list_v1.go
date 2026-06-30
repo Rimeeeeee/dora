@@ -29,6 +29,7 @@ type APISlotBlockAccessListData struct {
 // APISlotBlockAccessListEntry is the per-account section of the BAL.
 type APISlotBlockAccessListEntry struct {
 	Address        string                                `json:"address"`
+	StorageRoot    *string                               `json:"storage_root,omitempty"`
 	StorageChanges []*APISlotBlockAccessListStorageGroup `json:"storage_changes,omitempty"`
 	StorageReads   []string                              `json:"storage_reads,omitempty"`
 	BalanceChanges []*APISlotBlockAccessListBalance      `json:"balance_changes,omitempty"`
@@ -123,6 +124,11 @@ func APISlotBlockAccessListV1(w http.ResponseWriter, r *http.Request) {
 	for i, entry := range accesses {
 		apiEntry := &APISlotBlockAccessListEntry{
 			Address: fmt.Sprintf("0x%x", entry.Address[:]),
+		}
+
+		if entry.StorageRoot != nil {
+			storageRoot := fmt.Sprintf("0x%x", entry.StorageRoot.Value)
+			apiEntry.StorageRoot = &storageRoot
 		}
 
 		if len(entry.StorageWrites) > 0 {

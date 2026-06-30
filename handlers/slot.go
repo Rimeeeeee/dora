@@ -1744,6 +1744,11 @@ func convertBALToModel(accesses []utils.BALAccountAccess) []*models.SlotPageBloc
 			Address: entry.Address[:],
 		}
 
+		if entry.StorageRoot != nil {
+			storageRoot := fmt.Sprintf("0x%x", entry.StorageRoot.Value)
+			balEntry.StorageRoot = &storageRoot
+		}
+
 		if len(entry.StorageWrites) > 0 {
 			balEntry.StorageChanges = make([]*models.SlotPageBlockBALStorageChange, len(entry.StorageWrites))
 			for j, storageChange := range entry.StorageWrites {
@@ -1811,6 +1816,9 @@ func computeBALSummary(entries []*models.SlotPageBlockAccessListEntry) *models.S
 		UniqueAddresses: uint64(len(entries)),
 	}
 	for _, e := range entries {
+		if e.StorageRoot != nil {
+			s.StorageRoots++
+		}
 		s.StorageSlotWrites += uint64(len(e.StorageChanges))
 		for _, sc := range e.StorageChanges {
 			s.StorageWriteOps += uint64(len(sc.Changes))
