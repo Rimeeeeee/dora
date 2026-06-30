@@ -1177,6 +1177,11 @@ func convertBALToModel(accesses []utils.BALAccountAccess) []*models.SlotPageBloc
 			Address: entry.Address[:],
 		}
 
+		if entry.StorageRoot != nil {
+			storageRoot := fmt.Sprintf("0x%x", entry.StorageRoot.Value)
+			balEntry.StorageRoot = &storageRoot
+		}
+
 		if len(entry.StorageWrites) > 0 {
 			balEntry.StorageChanges = make([]*models.SlotPageBlockBALStorageChange, len(entry.StorageWrites))
 			for j, storageChange := range entry.StorageWrites {

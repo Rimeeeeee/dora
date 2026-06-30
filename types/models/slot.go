@@ -296,6 +296,7 @@ type SlotPageConsolidationRequest struct {
 
 type SlotPageBlockAccessListEntry struct {
 	Address        []byte                           `json:"address"`
+	StorageRoot    *string                          `json:"storage_root,omitempty"`
 	StorageChanges []*SlotPageBlockBALStorageChange `json:"storage_changes,omitempty"`
 	StorageReads   [][]byte                         `json:"storage_reads,omitempty"`
 	BalanceChanges []*SlotPageBlockBALBalanceChange `json:"balance_changes,omitempty"`
