@@ -5,11 +5,11 @@ go 1.25.1
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/allegro/bigcache/v3 v3.1.0
-	github.com/attestantio/go-eth2-client v0.28.0
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/ethereum/go-ethereum v1.17.1
 	github.com/ethpandaops/ethcore v0.0.0-20260320045412-9cdd5d70a29c
 	github.com/ethpandaops/ethwallclock v0.4.0
+	github.com/ethpandaops/go-eth2-client v0.28.0
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -22,7 +22,7 @@ require (
 	github.com/mashingan/smapping v0.1.19
 	github.com/minio/minio-go/v7 v7.0.99
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pk910/dynamic-ssz v1.2.3-0.20260318065836-323b83c1a387
+	github.com/pk910/dynamic-ssz v1.3.2
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/probe-lab/eth-das-guardian v0.2.2
 	github.com/protolambda/bls12-381-util v0.1.0
@@ -52,6 +52,7 @@ require (
 	github.com/OffchainLabs/go-bitfield v0.0.0-20251031151322-f427d04d8506 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/VictoriaMetrics/fastcache v1.13.0 // indirect
+	github.com/attestantio/go-eth2-client v0.27.1 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/casbin/govaluate v1.10.0 // indirect
 	github.com/chuckpreslar/emission v0.0.0-20170206194824-a7ddd980baf9 // indirect
@@ -144,7 +145,7 @@ require (
 	github.com/pion/transport/v3 v3.0.7 // indirect
 	github.com/pion/turn/v4 v4.1.1 // indirect
 	github.com/pion/webrtc/v4 v4.1.4 // indirect
-	github.com/pk910/hashtree-bindings v0.1.0 // indirect
+	github.com/pk910/hashtree-bindings v0.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prysmaticlabs/fastssz v0.0.0-20241008181541-518c4ce73516 // indirect
 	github.com/prysmaticlabs/gohashtree v0.0.5-beta // indirect
@@ -195,7 +196,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/goccy/go-yaml v1.18.0 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/golang/snappy v1.0.0
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3
@@ -255,7 +256,7 @@ require (
 	modernc.org/sqlite v1.46.1 // indirect
 )
 
-replace github.com/attestantio/go-eth2-client => github.com/pk910/go-eth2-client v0.0.0-20260107112128-b97b7522025a
+replace github.com/ethpandaops/go-eth2-client => github.com/Rimeeeeee/go-eth2-client v0.1.6-0.20260702102406-122d36053b5e
 
 //replace github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v0.0.0-20251217020005-abaef48d549a
 //replace github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v0.0.0-20260302233108-b9b434779702

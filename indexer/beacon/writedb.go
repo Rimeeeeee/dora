@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/attestantio/go-eth2-client/spec"
-	"github.com/attestantio/go-eth2-client/spec/bellatrix"
-	"github.com/attestantio/go-eth2-client/spec/capella"
-	"github.com/attestantio/go-eth2-client/spec/electra"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethpandaops/dora/clients/consensus"
 	"github.com/ethpandaops/dora/db"
 	"github.com/ethpandaops/dora/dbtypes"
 	"github.com/ethpandaops/dora/utils"
+	"github.com/ethpandaops/go-eth2-client/spec"
+	"github.com/ethpandaops/go-eth2-client/spec/bellatrix"
+	"github.com/ethpandaops/go-eth2-client/spec/capella"
+	"github.com/ethpandaops/go-eth2-client/spec/electra"
+	"github.com/ethpandaops/go-eth2-client/spec/phase0"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -274,7 +274,7 @@ func (dbw *dbWriter) buildDbBlock(block *Block, epochStats *EpochStats, override
 
 	executionRequests, _ := blockBody.ExecutionRequests()
 	if executionRequests != nil {
-		depositRequests = executionRequests.Deposits
+		depositRequests, _ = executionRequests.Deposits()
 	}
 
 	dbBlock := dbtypes.Slot{
@@ -370,7 +370,7 @@ func (dbw *dbWriter) buildDbBlock(block *Block, epochStats *EpochStats, override
 				payload := blockBody.Bellatrix.Message.Body.ExecutionPayload
 				dbBlock.EthGasUsed = payload.GasUsed
 				dbBlock.EthGasLimit = payload.GasLimit
-				dbBlock.EthBaseFee = utils.GetBaseFeeAsUint64(payload.BaseFeePerGas)
+				dbBlock.EthBaseFee = utils.GetBaseFeeAsUint64(payload.BaseFeePerGasLE)
 				dbBlock.EthFeeRecipient = payload.FeeRecipient[:]
 			}
 		case spec.DataVersionCapella:
@@ -379,7 +379,7 @@ func (dbw *dbWriter) buildDbBlock(block *Block, epochStats *EpochStats, override
 				payload := blockBody.Capella.Message.Body.ExecutionPayload
 				dbBlock.EthGasUsed = payload.GasUsed
 				dbBlock.EthGasLimit = payload.GasLimit
-				dbBlock.EthBaseFee = utils.GetBaseFeeAsUint64(payload.BaseFeePerGas)
+				dbBlock.EthBaseFee = utils.GetBaseFeeAsUint64(payload.BaseFeePerGasLE)
 				dbBlock.EthFeeRecipient = payload.FeeRecipient[:]
 			}
 		case spec.DataVersionDeneb:
@@ -404,15 +404,6 @@ func (dbw *dbWriter) buildDbBlock(block *Block, epochStats *EpochStats, override
 			if blockBody.Fulu != nil && blockBody.Fulu.Message != nil &&
 				blockBody.Fulu.Message.Body != nil && blockBody.Fulu.Message.Body.ExecutionPayload != nil {
 				payload := blockBody.Fulu.Message.Body.ExecutionPayload
-				dbBlock.EthGasUsed = payload.GasUsed
-				dbBlock.EthGasLimit = payload.GasLimit
-				dbBlock.EthBaseFee = utils.GetBaseFeeAsUint64(payload.BaseFeePerGas)
-				dbBlock.EthFeeRecipient = payload.FeeRecipient[:]
-			}
-		case spec.DataVersionGloas:
-			if blockBody.Gloas != nil && blockBody.Gloas.Message != nil &&
-				blockBody.Gloas.Message.Body != nil && blockBody.Gloas.Message.Body.ExecutionPayload != nil {
-				payload := blockBody.Gloas.Message.Body.ExecutionPayload
 				dbBlock.EthGasUsed = payload.GasUsed
 				dbBlock.EthGasLimit = payload.GasLimit
 				dbBlock.EthBaseFee = utils.GetBaseFeeAsUint64(payload.BaseFeePerGas)
@@ -499,7 +490,7 @@ func (dbw *dbWriter) buildDbEpoch(epoch phase0.Epoch, blocks []*Block, epochStat
 
 			executionRequests, _ := blockBody.ExecutionRequests()
 			if executionRequests != nil {
-				depositRequests = executionRequests.Deposits
+				depositRequests, _ = executionRequests.Deposits()
 			}
 
 			dbEpoch.AttestationCount += uint64(len(attestations))
@@ -570,13 +561,6 @@ func (dbw *dbWriter) buildDbEpoch(epoch phase0.Epoch, blocks []*Block, epochStat
 				if blockBody.Fulu != nil && blockBody.Fulu.Message != nil &&
 					blockBody.Fulu.Message.Body != nil && blockBody.Fulu.Message.Body.ExecutionPayload != nil {
 					payload := blockBody.Fulu.Message.Body.ExecutionPayload
-					dbEpoch.EthGasUsed += payload.GasUsed
-					dbEpoch.EthGasLimit += payload.GasLimit
-				}
-			case spec.DataVersionGloas:
-				if blockBody.Gloas != nil && blockBody.Gloas.Message != nil &&
-					blockBody.Gloas.Message.Body != nil && blockBody.Gloas.Message.Body.ExecutionPayload != nil {
-					payload := blockBody.Gloas.Message.Body.ExecutionPayload
 					dbEpoch.EthGasUsed += payload.GasUsed
 					dbEpoch.EthGasLimit += payload.GasLimit
 				}
@@ -678,7 +662,10 @@ func (dbw *dbWriter) buildDbDepositRequests(block *Block, orphaned bool, overrid
 		return nil
 	}
 
-	deposits := requests.Deposits
+	deposits, err := requests.Deposits()
+	if err != nil {
+		return nil
+	}
 
 	dbDeposits := make([]*dbtypes.Deposit, len(deposits))
 	for idx, deposit := range deposits {
@@ -873,7 +860,10 @@ func (dbw *dbWriter) buildDbConsolidationRequests(block *Block, orphaned bool, o
 		}
 	}
 
-	consolidations := requests.Consolidations
+	consolidations, err := requests.Consolidations()
+	if err != nil {
+		return nil
+	}
 
 	if len(consolidations) == 0 {
 		return []*dbtypes.ConsolidationRequest{}
@@ -954,7 +944,10 @@ func (dbw *dbWriter) buildDbWithdrawalRequests(block *Block, orphaned bool, over
 		}
 	}
 
-	withdrawalRequests := requests.Withdrawals
+	withdrawalRequests, err := requests.Withdrawals()
+	if err != nil {
+		return nil
+	}
 
 	if len(withdrawalRequests) == 0 {
 		return []*dbtypes.WithdrawalRequest{}

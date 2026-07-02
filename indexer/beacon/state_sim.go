@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"slices"
 
-	"github.com/attestantio/go-eth2-client/spec/electra"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethpandaops/dora/dbtypes"
 	"github.com/ethpandaops/dora/utils"
+	"github.com/ethpandaops/go-eth2-client/spec/electra"
+	"github.com/ethpandaops/go-eth2-client/spec/phase0"
 )
 
 type stateSimulator struct {
@@ -449,15 +449,25 @@ func (sim *stateSimulator) applyBlock(block *Block) [][]uint8 {
 
 	results := make([][]uint8, 2)
 
+	withdrawals, err := requests.Withdrawals()
+	if err != nil {
+		return nil
+	}
+
 	// apply withdrawal requests
-	results[0] = make([]uint8, len(requests.Withdrawals))
-	for i, withdrawal := range requests.Withdrawals {
+	results[0] = make([]uint8, len(withdrawals))
+	for i, withdrawal := range withdrawals {
 		results[0][i] = sim.applyWithdrawal(withdrawal)
 	}
 
+	consolidations, err := requests.Consolidations()
+	if err != nil {
+		return nil
+	}
+
 	// apply consolidation requests
-	results[1] = make([]uint8, len(requests.Consolidations))
-	for i, consolidation := range requests.Consolidations {
+	results[1] = make([]uint8, len(consolidations))
+	for i, consolidation := range consolidations {
 		results[1][i] = sim.applyConsolidation(consolidation)
 	}
 

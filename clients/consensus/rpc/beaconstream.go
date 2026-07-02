@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/donovanhide/eventsource"
+	v1 "github.com/ethpandaops/go-eth2-client/api/v1"
 	"github.com/sirupsen/logrus"
 
 	"github.com/ethpandaops/dora/clients/consensus/rpc/eventstream"
