@@ -19,6 +19,7 @@ import (
 	"github.com/ethpandaops/go-eth2-client/spec"
 	"github.com/ethpandaops/go-eth2-client/spec/capella"
 	"github.com/ethpandaops/go-eth2-client/spec/deneb"
+	"github.com/ethpandaops/go-eth2-client/spec/heze"
 	"github.com/ethpandaops/go-eth2-client/spec/phase0"
 	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
@@ -400,10 +401,62 @@ func (bc *BeaconClient) GetBlockBodyByBlockroot(ctx context.Context, blockroot p
 			return nil, nil
 		}
 
+		if hezeBlock, fallbackErr := bc.getHezeBlockMislabeledAsGloas(ctx, fmt.Sprintf("0x%x", blockroot), err); fallbackErr == nil && hezeBlock != nil {
+			return hezeBlock, nil
+		}
+
 		return nil, err
 	}
 
 	return result.Data, nil
+}
+
+type apiSignedBeaconBlockResponse struct {
+	Version string          `json:"version"`
+	Data    json.RawMessage `json:"data"`
+}
+
+type signedBeaconBlockShape struct {
+	Message struct {
+		Body map[string]json.RawMessage `json:"body"`
+	} `json:"message"`
+}
+
+func (bc *BeaconClient) getHezeBlockMislabeledAsGloas(ctx context.Context, block string, decodeErr error) (*spec.VersionedSignedBeaconBlock, error) {
+	errText := decodeErr.Error()
+	if !strings.Contains(errText, "failed to decode gloas signed beacon block") ||
+		!strings.Contains(errText, "BLSToExecutionChanges") {
+		return nil, decodeErr
+	}
+
+	var rawBlock apiSignedBeaconBlockResponse
+	if err := bc.getJSON(ctx, fmt.Sprintf("%s/eth/v2/beacon/blocks/%s", bc.endpoint, block), &rawBlock); err != nil {
+		return nil, err
+	}
+
+	var shape signedBeaconBlockShape
+	if err := json.Unmarshal(rawBlock.Data, &shape); err != nil {
+		return nil, err
+	}
+
+	if _, ok := shape.Message.Body["execution_payload"]; !ok {
+		return nil, decodeErr
+	}
+	if _, ok := shape.Message.Body["signed_execution_payload_bid"]; ok {
+		return nil, decodeErr
+	}
+
+	hezeSignedBlock := &heze.SignedBeaconBlock{}
+	if err := json.Unmarshal(rawBlock.Data, hezeSignedBlock); err != nil {
+		return nil, err
+	}
+
+	bc.logger.Warnf("beacon block %s was labeled as gloas but has heze execution_payload shape; decoded as heze", block)
+
+	return &spec.VersionedSignedBeaconBlock{
+		Version: spec.DataVersionHeze,
+		Heze:    hezeSignedBlock,
+	}, nil
 }
 
 func (bc *BeaconClient) GetState(ctx context.Context, stateRef string) (*spec.VersionedBeaconState, error) {
