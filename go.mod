@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/allegro/bigcache/v3 v3.1.0
+	github.com/attestantio/go-eth2-client v0.27.1
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/ethereum/go-ethereum v1.17.1
 	github.com/ethpandaops/ethcore v0.0.0-20260320045412-9cdd5d70a29c
@@ -52,7 +53,6 @@ require (
 	github.com/OffchainLabs/go-bitfield v0.0.0-20251031151322-f427d04d8506 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/VictoriaMetrics/fastcache v1.13.0 // indirect
-	github.com/attestantio/go-eth2-client v0.27.1 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/casbin/govaluate v1.10.0 // indirect
 	github.com/chuckpreslar/emission v0.0.0-20170206194824-a7ddd980baf9 // indirect
@@ -256,7 +256,7 @@ require (
 	modernc.org/sqlite v1.46.1 // indirect
 )
 
-replace github.com/ethpandaops/go-eth2-client => github.com/Rimeeeeee/go-eth2-client v0.1.6-0.20260702102406-122d36053b5e
+replace github.com/ethpandaops/go-eth2-client => github.com/Rimeeeeee/go-eth2-client v0.1.6-0.20260703130529-5d64c0d89bd1
 
 //replace github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v0.0.0-20251217020005-abaef48d549a
 //replace github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v0.0.0-20260302233108-b9b434779702

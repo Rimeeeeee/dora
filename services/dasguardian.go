@@ -2,14 +2,17 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
 	"time"
 
+	attestantSpec "github.com/attestantio/go-eth2-client/spec"
+	attestantPhase0 "github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethpandaops/go-eth2-client/spec"
-	"github.com/ethpandaops/go-eth2-client/spec/phase0"
+	ethpandaSpec "github.com/ethpandaops/go-eth2-client/spec"
+	ethpandaPhase0 "github.com/ethpandaops/go-eth2-client/spec/phase0"
 	dasguardian "github.com/probe-lab/eth-das-guardian"
 	"github.com/probe-lab/eth-das-guardian/api"
 	"github.com/sirupsen/logrus"
@@ -97,7 +100,7 @@ func (d *DasGuardian) ScanNodeWithCallback(ctx context.Context, nodeEnr string, 
 		// Convert to SampleableSlot format
 		var sampleableSlots []dasguardian.SampleableSlot
 		for _, slot := range selectedSlots {
-			beaconBlock, err := GlobalBeaconService.GetSlotDetailsBySlot(ctx, phase0.Slot(slot))
+			beaconBlock, err := GlobalBeaconService.GetSlotDetailsBySlot(ctx, ethpandaPhase0.Slot(slot))
 			if err != nil {
 				return nil, err
 			}
@@ -106,9 +109,14 @@ func (d *DasGuardian) ScanNodeWithCallback(ctx context.Context, nodeEnr string, 
 				continue
 			}
 
+			guardianBlock, err := convertGuardianBeaconBlock(beaconBlock.Block)
+			if err != nil {
+				return nil, err
+			}
+
 			sampleableSlots = append(sampleableSlots, dasguardian.SampleableSlot{
 				Slot:        slot,
-				BeaconBlock: beaconBlock.Block,
+				BeaconBlock: guardianBlock,
 			})
 		}
 
@@ -134,7 +142,7 @@ func (d *dasGuardianAPI) GetStateVersion() string {
 	fuluForkEpoch := d.GetFuluForkEpoch()
 	currentEpoch := GlobalBeaconService.GetChainState().CurrentEpoch()
 
-	if currentEpoch >= phase0.Epoch(fuluForkEpoch) {
+	if currentEpoch >= ethpandaPhase0.Epoch(fuluForkEpoch) {
 		return "fulu"
 	}
 
@@ -143,22 +151,28 @@ func (d *dasGuardianAPI) GetStateVersion() string {
 
 func (d *dasGuardianAPI) GetForkDigest(slot uint64) ([]byte, error) {
 	chainState := GlobalBeaconService.GetChainState()
-	forkDigest := chainState.GetForkDigestForEpoch(chainState.EpochOfSlot(phase0.Slot(slot)))
+	forkDigest := chainState.GetForkDigestForEpoch(chainState.EpochOfSlot(ethpandaPhase0.Slot(slot)))
 	return forkDigest[:], nil
 }
 
-func (d *dasGuardianAPI) GetFinalizedCheckpoint() *phase0.Checkpoint {
+func (d *dasGuardianAPI) GetFinalizedCheckpoint() *attestantPhase0.Checkpoint {
 	epoch, root := GlobalBeaconService.GetChainState().GetFinalizedCheckpoint()
-	return &phase0.Checkpoint{
-		Epoch: epoch,
-		Root:  root,
+	return &attestantPhase0.Checkpoint{
+		Epoch: attestantPhase0.Epoch(epoch),
+		Root:  attestantPhase0.Root(root),
 	}
 }
 
-func (d *dasGuardianAPI) GetLatestBlockHeader() *phase0.BeaconBlockHeader {
+func (d *dasGuardianAPI) GetLatestBlockHeader() *attestantPhase0.BeaconBlockHeader {
 	headBlock := GlobalBeaconService.GetBeaconIndexer().GetCanonicalHead(nil)
 	header := headBlock.GetHeader()
-	return header.Message
+	return &attestantPhase0.BeaconBlockHeader{
+		Slot:          attestantPhase0.Slot(header.Message.Slot),
+		ProposerIndex: attestantPhase0.ValidatorIndex(header.Message.ProposerIndex),
+		ParentRoot:    attestantPhase0.Root(header.Message.ParentRoot),
+		StateRoot:     attestantPhase0.Root(header.Message.StateRoot),
+		BodyRoot:      attestantPhase0.Root(header.Message.BodyRoot),
+	}
 }
 
 func (d *dasGuardianAPI) GetFuluForkEpoch() uint64 {
@@ -222,7 +236,7 @@ func (d *dasGuardianAPI) GetNodeIdentity(ctx context.Context) (*api.NodeIdentity
 	return nodeIdentity, nil
 }
 
-func (d *dasGuardianAPI) GetBeaconBlock(ctx context.Context, slot any) (*spec.VersionedSignedBeaconBlock, error) {
+func (d *dasGuardianAPI) GetBeaconBlock(ctx context.Context, slot any) (*attestantSpec.VersionedSignedBeaconBlock, error) {
 	// Convert slot parameter to uint64
 	var slotNum uint64
 	switch s := slot.(type) {
@@ -243,7 +257,7 @@ func (d *dasGuardianAPI) GetBeaconBlock(ctx context.Context, slot any) (*spec.Ve
 		return nil, fmt.Errorf("unsupported slot type: %T", slot)
 	}
 
-	block, err := GlobalBeaconService.GetSlotDetailsBySlot(ctx, phase0.Slot(slotNum))
+	block, err := GlobalBeaconService.GetSlotDetailsBySlot(ctx, ethpandaPhase0.Slot(slotNum))
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +266,7 @@ func (d *dasGuardianAPI) GetBeaconBlock(ctx context.Context, slot any) (*spec.Ve
 		return nil, fmt.Errorf("block not found for slot %d", slotNum)
 	}
 
-	return block.Block, nil
+	return convertGuardianBeaconBlock(block.Block)
 }
 
 func (d *dasGuardianAPI) ReadSpecParameter(key string) (any, bool) {
@@ -289,4 +303,28 @@ func (d *dasGuardianAPI) ReadSpecParameter(key string) (any, bool) {
 
 	// Key not found
 	return nil, false
+}
+
+func convertGuardianBeaconBlock(block *ethpandaSpec.VersionedSignedBeaconBlock) (*attestantSpec.VersionedSignedBeaconBlock, error) {
+	if block == nil {
+		return nil, nil
+	}
+
+	switch block.Version.String() {
+	case "phase0", "altair", "bellatrix", "capella", "deneb", "electra", "fulu":
+	default:
+		return nil, fmt.Errorf("DAS Guardian does not support %s beacon blocks", block.Version.String())
+	}
+
+	blockJSON, err := json.Marshal(block)
+	if err != nil {
+		return nil, fmt.Errorf("marshal beacon block for DAS Guardian: %w", err)
+	}
+
+	guardianBlock := &attestantSpec.VersionedSignedBeaconBlock{}
+	if err := json.Unmarshal(blockJSON, guardianBlock); err != nil {
+		return nil, fmt.Errorf("convert beacon block for DAS Guardian: %w", err)
+	}
+
+	return guardianBlock, nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/ethpandaops/go-eth2-client/spec/deneb"
 	"github.com/ethpandaops/go-eth2-client/spec/electra"
 	"github.com/ethpandaops/go-eth2-client/spec/gloas"
+	"github.com/ethpandaops/go-eth2-client/spec/heze"
 	"github.com/ethpandaops/go-eth2-client/spec/phase0"
 	dynssz "github.com/pk910/dynamic-ssz"
 )
@@ -48,9 +49,12 @@ func MarshalVersionedSignedBeaconBlockSSZ(dynSsz *dynssz.DynSsz, block *spec.Ver
 		case spec.DataVersionFulu:
 			version = uint64(block.Version)
 			ssz, err = dynSsz.MarshalSSZ(block.Fulu)
-		case spec.DataVersionGloas, spec.DataVersionHeze:
+		case spec.DataVersionGloas:
 			version = uint64(block.Version)
 			ssz, err = dynSsz.MarshalSSZ(block.Gloas)
+		case spec.DataVersionHeze:
+			version = uint64(block.Version)
+			ssz, err = dynSsz.MarshalSSZ(block.Heze)
 		default:
 			err = fmt.Errorf("unknown block version")
 		}
@@ -122,10 +126,15 @@ func UnmarshalVersionedSignedBeaconBlockSSZ(dynSsz *dynssz.DynSsz, version uint6
 		if err := dynSsz.UnmarshalSSZ(block.Fulu, ssz); err != nil {
 			return nil, fmt.Errorf("failed to decode fulu signed beacon block: %v", err)
 		}
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		block.Gloas = &gloas.SignedBeaconBlock{}
 		if err := dynSsz.UnmarshalSSZ(block.Gloas, ssz); err != nil {
 			return nil, fmt.Errorf("failed to decode %s signed beacon block: %v", block.Version, err)
+		}
+	case spec.DataVersionHeze:
+		block.Heze = &heze.SignedBeaconBlock{}
+		if err := dynSsz.UnmarshalSSZ(block.Heze, ssz); err != nil {
+			return nil, fmt.Errorf("failed to decode heze signed beacon block: %v", err)
 		}
 	default:
 		return nil, fmt.Errorf("unknown block version")
@@ -157,9 +166,12 @@ func MarshalVersionedSignedBeaconBlockJson(block *spec.VersionedSignedBeaconBloc
 	case spec.DataVersionFulu:
 		version = uint64(block.Version)
 		jsonRes, err = block.Fulu.MarshalJSON()
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		version = uint64(block.Version)
 		jsonRes, err = block.Gloas.MarshalJSON()
+	case spec.DataVersionHeze:
+		version = uint64(block.Version)
+		jsonRes, err = block.Heze.MarshalJSON()
 	default:
 		err = fmt.Errorf("unknown block version")
 	}
@@ -213,10 +225,15 @@ func unmarshalVersionedSignedBeaconBlockJson(version uint64, ssz []byte) (*spec.
 		if err := block.Fulu.UnmarshalJSON(ssz); err != nil {
 			return nil, fmt.Errorf("failed to decode fulu signed beacon block: %v", err)
 		}
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		block.Gloas = &gloas.SignedBeaconBlock{}
 		if err := block.Gloas.UnmarshalJSON(ssz); err != nil {
 			return nil, fmt.Errorf("failed to decode %s signed beacon block: %v", block.Version, err)
+		}
+	case spec.DataVersionHeze:
+		block.Heze = &heze.SignedBeaconBlock{}
+		if err := block.Heze.UnmarshalJSON(ssz); err != nil {
+			return nil, fmt.Errorf("failed to decode heze signed beacon block: %v", err)
 		}
 	default:
 		return nil, fmt.Errorf("unknown block version")
@@ -269,12 +286,18 @@ func getStateRandaoMixes(v *spec.VersionedBeaconState) ([]phase0.Root, error) {
 		}
 
 		return v.Fulu.RANDAOMixes, nil
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		if v.Gloas == nil || v.Gloas.RANDAOMixes == nil {
 			return nil, fmt.Errorf("no %s block", v.Version)
 		}
 
 		return v.Gloas.RANDAOMixes, nil
+	case spec.DataVersionHeze:
+		if v.Heze == nil || v.Heze.RANDAOMixes == nil {
+			return nil, fmt.Errorf("no %s block", v.Version)
+		}
+
+		return v.Heze.RANDAOMixes, nil
 	default:
 		return nil, errors.New("unknown version")
 	}
@@ -297,8 +320,10 @@ func getStateDepositIndex(state *spec.VersionedBeaconState) uint64 {
 		return state.Electra.ETH1DepositIndex
 	case spec.DataVersionFulu:
 		return state.Fulu.ETH1DepositIndex
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		return state.Gloas.ETH1DepositIndex
+	case spec.DataVersionHeze:
+		return state.Heze.ETH1DepositIndex
 	}
 	return 0
 }
@@ -344,12 +369,18 @@ func getStateCurrentSyncCommittee(v *spec.VersionedBeaconState) ([]phase0.BLSPub
 		}
 
 		return v.Fulu.CurrentSyncCommittee.Pubkeys, nil
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		if v.Gloas == nil || v.Gloas.CurrentSyncCommittee == nil {
 			return nil, fmt.Errorf("no %s block", v.Version)
 		}
 
 		return v.Gloas.CurrentSyncCommittee.Pubkeys, nil
+	case spec.DataVersionHeze:
+		if v.Heze == nil || v.Heze.CurrentSyncCommittee == nil {
+			return nil, fmt.Errorf("no %s block", v.Version)
+		}
+
+		return v.Heze.CurrentSyncCommittee.Pubkeys, nil
 	default:
 		return nil, errors.New("unknown version")
 	}
@@ -380,12 +411,18 @@ func getStateDepositBalanceToConsume(v *spec.VersionedBeaconState) (phase0.Gwei,
 		}
 
 		return v.Fulu.DepositBalanceToConsume, nil
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		if v.Gloas == nil {
 			return 0, fmt.Errorf("no %s block", v.Version)
 		}
 
 		return v.Gloas.DepositBalanceToConsume, nil
+	case spec.DataVersionHeze:
+		if v.Heze == nil {
+			return 0, fmt.Errorf("no %s block", v.Version)
+		}
+
+		return v.Heze.DepositBalanceToConsume, nil
 	default:
 		return 0, errors.New("unknown version")
 	}
@@ -416,12 +453,18 @@ func getStatePendingDeposits(v *spec.VersionedBeaconState) ([]*electra.PendingDe
 		}
 
 		return v.Fulu.PendingDeposits, nil
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		if v.Gloas == nil || v.Gloas.PendingDeposits == nil {
 			return nil, fmt.Errorf("no %s block", v.Version)
 		}
 
 		return v.Gloas.PendingDeposits, nil
+	case spec.DataVersionHeze:
+		if v.Heze == nil || v.Heze.PendingDeposits == nil {
+			return nil, fmt.Errorf("no %s block", v.Version)
+		}
+
+		return v.Heze.PendingDeposits, nil
 	default:
 		return nil, errors.New("unknown version")
 	}
@@ -452,12 +495,18 @@ func getStatePendingWithdrawals(v *spec.VersionedBeaconState) ([]*electra.Pendin
 		}
 
 		return v.Fulu.PendingPartialWithdrawals, nil
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		if v.Gloas == nil || v.Gloas.PendingPartialWithdrawals == nil {
 			return nil, fmt.Errorf("no %s block", v.Version)
 		}
 
 		return v.Gloas.PendingPartialWithdrawals, nil
+	case spec.DataVersionHeze:
+		if v.Heze == nil || v.Heze.PendingPartialWithdrawals == nil {
+			return nil, fmt.Errorf("no %s block", v.Version)
+		}
+
+		return v.Heze.PendingPartialWithdrawals, nil
 	default:
 		return nil, errors.New("unknown version")
 	}
@@ -488,12 +537,18 @@ func getStatePendingConsolidations(v *spec.VersionedBeaconState) ([]*electra.Pen
 		}
 
 		return v.Fulu.PendingConsolidations, nil
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		if v.Gloas == nil || v.Gloas.PendingConsolidations == nil {
 			return nil, fmt.Errorf("no %s block", v.Version)
 		}
 
 		return v.Gloas.PendingConsolidations, nil
+	case spec.DataVersionHeze:
+		if v.Heze == nil || v.Heze.PendingConsolidations == nil {
+			return nil, fmt.Errorf("no %s block", v.Version)
+		}
+
+		return v.Heze.PendingConsolidations, nil
 	default:
 		return nil, errors.New("unknown version")
 	}
@@ -520,12 +575,18 @@ func getStateProposerLookahead(v *spec.VersionedBeaconState) ([]phase0.Validator
 		}
 
 		return v.Fulu.ProposerLookahead, nil
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		if v.Gloas == nil || v.Gloas.ProposerLookahead == nil {
 			return nil, fmt.Errorf("no %s block", v.Version)
 		}
 
 		return v.Gloas.ProposerLookahead, nil
+	case spec.DataVersionHeze:
+		if v.Heze == nil || v.Heze.ProposerLookahead == nil {
+			return nil, fmt.Errorf("no %s block", v.Version)
+		}
+
+		return v.Heze.ProposerLookahead, nil
 	default:
 		return nil, errors.New("unknown version")
 	}
@@ -548,8 +609,10 @@ func getBlockSize(dynSsz *dynssz.DynSsz, block *spec.VersionedSignedBeaconBlock)
 		return dynSsz.SizeSSZ(block.Electra)
 	case spec.DataVersionFulu:
 		return dynSsz.SizeSSZ(block.Fulu)
-	case spec.DataVersionGloas, spec.DataVersionHeze:
+	case spec.DataVersionGloas:
 		return dynSsz.SizeSSZ(block.Gloas)
+	case spec.DataVersionHeze:
+		return dynSsz.SizeSSZ(block.Heze)
 	default:
 		return 0, errors.New("unknown version")
 	}

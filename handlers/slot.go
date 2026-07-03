@@ -865,7 +865,7 @@ func getSlotPageBlockData(ctx context.Context, blockData *services.CombinedBlock
 			getSlotPageTransactions(ctx, pageData, transactions, blockUid)
 		}
 
-		if blockAccessListRlp, err := executionPayload.BlockAccessList(); err == nil {
+		if blockAccessListRlp := getBlockAccessListRLP(executionPayload); len(blockAccessListRlp) > 0 {
 			accesses, err := utils.DecodeBlockAccessList(blockAccessListRlp)
 			if err != nil {
 				logrus.Warnf("error decoding block access list: %v", err)
@@ -924,9 +924,15 @@ func getSlotPageBlockData(ctx context.Context, blockData *services.CombinedBlock
 	}
 
 	if requests, err := blockData.Block.ExecutionRequests(); err == nil && requests != nil {
-		getSlotPageDepositRequests(pageData, requests.Deposits)
-		getSlotPageWithdrawalRequests(pageData, requests.Withdrawals)
-		getSlotPageConsolidationRequests(pageData, requests.Consolidations)
+		if deposits, err := requests.Deposits(); err == nil {
+			getSlotPageDepositRequests(pageData, deposits)
+		}
+		if withdrawals, err := requests.Withdrawals(); err == nil {
+			getSlotPageWithdrawalRequests(pageData, withdrawals)
+		}
+		if consolidations, err := requests.Consolidations(); err == nil {
+			getSlotPageConsolidationRequests(pageData, consolidations)
+		}
 	}
 
 	return pageData
@@ -1137,6 +1143,27 @@ func getSlotPageConsolidationRequests(pageData *models.SlotPageBlockData, consol
 	}
 
 	pageData.ConsolidationRequestsCount = uint64(len(pageData.ConsolidationRequests))
+}
+
+func getBlockAccessListRLP(executionPayload *spec.VersionedExecutionPayload) []byte {
+	if executionPayload == nil {
+		return nil
+	}
+
+	switch executionPayload.Version {
+	case spec.DataVersionGloas:
+		if executionPayload.Gloas == nil {
+			return nil
+		}
+		return executionPayload.Gloas.BlockAccessList
+	case spec.DataVersionHeze:
+		if executionPayload.Heze == nil {
+			return nil
+		}
+		return executionPayload.Heze.BlockAccessList
+	default:
+		return nil
+	}
 }
 
 func handleSlotParseAccessList(w http.ResponseWriter, r *http.Request) error {
