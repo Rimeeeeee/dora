@@ -589,8 +589,8 @@
 
       renderStorageRoot(storageRoot) {
         if (!storageRoot) return '';
-        const root = arrayToHex(storageRoot);
-        const label = root === '0x' ? 'Empty storage trie marker' : 'Post-block storage root';
+        const root = formatStorageRootValue(storageRoot);
+        const label = root === 'Empty' ? 'Empty storage trie marker' : 'Post-block storage root';
         return `
           <div class="p-3">
             <div class="text-muted small mb-1">${label}</div>
@@ -783,6 +783,11 @@
       const sign = diff > 0n ? '+' : '-';
       
       return `<span class="bal-balance-diff ${cssClass}"> ${sign}${formattedDiff} ETH</span>`;
+    }
+
+    function formatStorageRootValue(storageRoot) {
+      const root = arrayToHex(storageRoot);
+      return root === '0x' || root === '0xd3' ? 'Empty' : root;
     }
     
     function arrayToHex(input) {
@@ -1416,8 +1421,8 @@
       }
 
       function generateStorageRootDetails(blockRoot, providedRoot) {
-        const blockValue = blockRoot === null || blockRoot === undefined ? 'omitted' : arrayToHex(blockRoot);
-        const providedValue = providedRoot === null || providedRoot === undefined ? 'omitted' : arrayToHex(providedRoot);
+        const blockValue = blockRoot === null || blockRoot === undefined ? 'omitted' : formatStorageRootValue(blockRoot);
+        const providedValue = providedRoot === null || providedRoot === undefined ? 'omitted' : formatStorageRootValue(providedRoot);
         return `
           <div class="mt-2"><small class="fw-bold">Storage Root:</small>
             <div class="row small font-monospace">
@@ -1730,6 +1735,11 @@
       function normalizeOptionalHex(value) {
         if (value === null || value === undefined) return null;
         return normalizeHex(arrayToHex(value));
+      }
+
+      function formatStorageRootValue(storageRoot) {
+        const root = arrayToHex(storageRoot);
+        return root === '0x' || root === '0xd3' ? 'Empty' : root;
       }
       
       function arrayToHex(input) {
